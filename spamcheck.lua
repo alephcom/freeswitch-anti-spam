@@ -1,7 +1,7 @@
-require "config";
 api = freeswitch.API();
 caller=session:getVariable('caller');
 callee=session:getVariable('callee');
+uuid = session:getVariable("UUID");
 freeswitch.consoleLog("info","Caller is : "..caller);
 freeswitch.consoleLog("info","Callee is : "..callee);
 local Timestamp = os.time();
@@ -24,18 +24,28 @@ weekday = 5;
 mainmenu='/home/spamvoice/press5.mp3';
 elseif weekday == "Friday" then
 weekday = 6;
-mainmenu='/home/spam/voice/press6.mp3';
+mainmenu='/home/spamvoice/press6.mp3';
 elseif weekday == "Saturday" then
 weekday = 7;
 mainmenu='/home/spamvoice/press7.mp3';
 end
 
+--command = "/usr/bin/php   /usr/local/freeswitch/scripts/spamchek.php     "..tostring(caller).."    "..tostring(uuid);
+command="php /usr/local/freeswitch/scripts/spamcheck.php      " ..tostring(caller).."    "..tostring(uuid);
+local handle = io.popen("php /usr/local/freeswitch/scripts/spamcheck.php      " ..tostring(caller).."    "..tostring(uuid));
+freeswitch.consoleLog("info","Command is: "..tostring(command));
+local result = handle:read("*a")
+handle:close()
+--session:execute("system",command );
 
-query="select SYear,SMonth,SDate from wcallerid where callerid  like   '%"..caller.."' order by id desc";
-freeswitch.consoleLog("info","File query is: "..query);
-session:setVariable("numrow","0");
-local result = dbh:query(query,set_session_variables);
-local numrow = tonumber(session:getVariable("numrow"));
+--query="select SYear,SMonth,SDate from wcallerid where callerid  like   '%"..caller.."' order by id desc";
+--freeswitch.consoleLog("info","File query is: "..query);
+--session:setVariable("numrow","0");
+--local result = dbh:query(query,set_session_variables);
+
+local numrow = tonumber(session:getVariable("Exits"));
+
+
 if numrow ~= nil then freeswitch.consoleLog("info","Numrow is: "..tostring(numrow));end
 
 if numrow == 1 then
@@ -58,9 +68,9 @@ freeswitch.consoleLog("info","Day Difference is: "..tostring(daydifference));
 
 
 if daydifference > 10 then
-query="delete from wcallerid where callerid='"..tostring(caller).."'";
-freeswitch.consoleLog("info","File query is: "..query);
-dbh:query(query);
+--query="delete from wcallerid where callerid='"..tostring(caller).."'";
+--freeswitch.consoleLog("info","File query is: "..query);
+--dbh:query(query);
 session:execute("lua","revaliadte.lua");
 end
 else
@@ -77,14 +87,19 @@ local command = min..' , '..max..' , '..tries..' , '..timeoutsec..' , '..hashter
 freeswitch.consoleLog("notice", "IVR Time Out Destination ID : " ..command.. "\n");
 dtmf = session:playAndGetDigits(min, max, tries, timeoutsec, hashterminator, ivrmenupromptfilepath , ivrmenuinvalidfilepath,terminatordigit , digittimeout )
 if dtmf ~= nil then freeswitch.consoleLog("notice", "DTMF : " ..dtmf.. "\n"); end
-if dtmf ==  '2' then
+if dtmf ==  '1' or dtmf == '2' or dtmf == '3' or dtmf == '4' or dtmf == '5' or dtmf == '6' or dtmf == '7'  then
 Year=os.date("%Y");
 Month=os.date("%m");
 Date=os.date("%d");
+command="php /usr/local/freeswitch/scripts/calleridin.php      " ..tostring(caller).."    "..tostring(Year).."   "..tostring(Month).."   "..tostring(Date);
+local handle = io.popen("php /usr/local/freeswitch/scripts/calleridin.php      " ..tostring(caller).."    "..tostring(Year).."   "..tostring(Month).."   "..tostring(Date));
+freeswitch.consoleLog("info","Command is: "..tostring(command));
+local result = handle:read("*a")
+handle:close()
 
-local query ="insert into wcallerid(callerid,SYear,SMonth,SDate) values(".."'"..caller.."'"..','.."'"..Year.."'"..','.."'"..Month.."','"..Date.."'"..")"
-freeswitch.consoleLog("notice", "Query : " ..query.. "\n");
-dbh:query(query);
+--local query ="insert into wcallerid(callerid,SYear,SMonth,SDate) values(".."'"..caller.."'"..','.."'"..Year.."'"..','.."'"..Month.."','"..Date.."'"..")"
+--freeswitch.consoleLog("notice", "Query : " ..query.. "\n");
+--dbh:query(query);
 freeswitch.consoleLog("info","OS date  is: "..Timestamp);
 end
 end
