@@ -78,7 +78,22 @@ class CallController extends Controller
         } else if (strval($pin) === $request->input('pin')) {
             $xml->startElement('break');
             $xml->endElement();
+        } else if ($request->has('pin')) {
+            $xml->startElement('playback');
+            $xml->writeAttribute('name', "pin");
+            $xml->writeAttribute('file', url("audio/press_" . $pin . ".mp3"));
+            $xml->writeAttribute('error-file', url("audio/did_not_receive_response.mp3"));
+            $xml->writeAttribute('digit-timeout', "1000");
+            $xml->writeAttribute('input-timeout', "5000");
+            $xml->startElement("bind");
+            $xml->text("~\d");
+            $xml->endElement();
         } else {
+            // First time around.
+            $xml->startElement('playback');
+            $xml->writeAttribute('file', url("audio/protection.mp3"));
+            $xml->endElement();
+
             $xml->startElement('playback');
             $xml->writeAttribute('name', "pin");
             $xml->writeAttribute('file', url("audio/press_" . $pin . ".mp3"));
