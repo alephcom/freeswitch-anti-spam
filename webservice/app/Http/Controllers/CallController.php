@@ -52,10 +52,16 @@ class CallController extends Controller
 
         $xml->startElement('work');
 
+        Cache::put(
+            'attempts_clid_' . $clid,
+            $attempts + 1,
+            Carbon::now()->addDays($this->banned_days)->toDateTimeString()
+        );
+
         if ($attempts >= $this->max_attempts) {
             Cache::put(
-                'attempts_clid_' . $clid,
-                $attempts + 1,
+                'blacklisted_clid_' . $clid,
+                true,
                 Carbon::now()->addDays($this->banned_days)->toDateTimeString()
             );
         }
