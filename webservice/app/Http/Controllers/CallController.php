@@ -31,11 +31,16 @@ class CallController extends Controller
         Log::info(json_encode($request->input()));
         $dest = $request->input('Caller-Destination-Number');
         $source = $request->input("Caller-Caller-ID-Number");
-        Log::info('PIN: ' . $request->input('pin'));
+
 
         $clid = $this->sanitize($source);
 
         $attempts = Cache::get('attempts_clid_' . $clid, 0);
+
+        Log::info('PIN: ' . $request->input('pin'));
+        Log::info('Source:  ' . $source);
+        Log::info('Dest: ' . $dest);
+        Log::info('Attempts: ' . $attempts);
 
         $xml = new \XMLWriter();
         $xml->openMemory();
@@ -46,10 +51,6 @@ class CallController extends Controller
         $xml->writeAttribute('type', 'xml/freeswitch-httapi');
 
         $xml->startElement('work');
-
-        $xml->startElement('pause');
-        $xml->writeAttribute('milliseconds', "2000");
-        $xml->endElement();
 
         if ($attempts >= $this->max_attempts) {
             Cache::put(
@@ -63,6 +64,9 @@ class CallController extends Controller
             $xml->startElement('break');
             $xml->endElement();
         } else if (Cache::get('blacklisted_clid_' . $clid, false)) {
+            $xml->startElement('pause');
+            $xml->writeAttribute('milliseconds', "2000");
+            $xml->endElement();
 
             $xml->startElement('playback');
             $xml->writeAttribute('name', "pin");
@@ -99,6 +103,7 @@ class CallController extends Controller
             $xml->startElement('break');
             $xml->endElement();
         } else if ($request->has('pin')) {
+            // Request has pin but does not match.
             $xml->startElement('playback');
             $xml->writeAttribute('name', "pin");
             $xml->writeAttribute('file', url("audio/press_" . $pin . ".mp3"));
@@ -110,6 +115,10 @@ class CallController extends Controller
             $xml->endElement();
         } else {
             // First time around.
+            $xml->startElement('pause');
+            $xml->writeAttribute('milliseconds', "2000");
+            $xml->endElement();
+
             $xml->startElement('playback');
             $xml->writeAttribute('file', url("audio/protection.mp3"));
             $xml->endElement();
@@ -137,5 +146,5 @@ class CallController extends Controller
     {
         return $clid;
     }
-    
+
 }
