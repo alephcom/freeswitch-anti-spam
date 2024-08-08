@@ -39,6 +39,10 @@ class CallController extends Controller
 
         $xml->startElement('work');
 
+        $xml->startElement('pause');
+        $xml->writeAttribute('milliseconds', "2000");
+        $xml->endElement();
+
         if ($this->blacklisted($clid)) {
 
             $xml->startElement('playback');
