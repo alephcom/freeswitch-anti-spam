@@ -12,6 +12,8 @@ class CallController extends Controller
 
     private int $max_attempts = 3;
     private int $banned_days = 30;
+    private int $whitelisted_days = 30;
+    private string $override = "45678";
 
     /**
      * Create a new controller instance.
@@ -31,7 +33,6 @@ class CallController extends Controller
         Log::info(json_encode($request->input()));
         $dest = $request->input('Caller-Destination-Number');
         $source = $request->input("Caller-Caller-ID-Number");
-
 
         $clid = $this->sanitize($source);
 
@@ -65,6 +66,28 @@ class CallController extends Controller
                 Carbon::now()->addDays($this->banned_days)->toDateTimeString()
             );
         }
+        if ($request->has('override') && $request->input('override') === $this->override) {
+            Cache::delete(
+                'blacklisted_clid_' . $clid
+            );
+            Cache::put(
+                'attempts_clid_' . $clid,
+                0
+            );
+            Cache::put(
+                'whitelisted_clid_' . $clid,
+                true,
+                Carbon::now()->addDays($this->whitelisted_days)->toDateTimeString()
+            );
+        } elseif ($request->has('override') && $attempts >= $this->max_attempts) {
+            // If they've failed to work through the blacklist the second time they get blacklisted for twice as long.
+            Cache::put(
+                'blacklisted_clid_' . $clid,
+                true,
+                Carbon::now()->addDays($this->banned_days * 2)->toDateTimeString()
+            );
+        }
+
         if (Cache::get('whitelisted_clid_' . $clid, false)) {
             // whitelisted
             $xml->startElement('break');
@@ -74,9 +97,20 @@ class CallController extends Controller
             $xml->writeAttribute('milliseconds', "2000");
             $xml->endElement();
 
+            //$xml->startElement('playback');
+            //$xml->writeAttribute('name', "pin");
+            //$xml->writeAttribute('file', url("audio/temporarily_banned.mp3"));
+
             $xml->startElement('playback');
-            $xml->writeAttribute('name', "pin");
+            $xml->writeAttribute('name', "override");
             $xml->writeAttribute('file', url("audio/temporarily_banned.mp3"));
+            //$xml->writeAttribute('error-file', url("audio/did_not_receive_response.mp3"));
+            //$xml->writeAttribute('digit-timeout', "1000");
+            //$xml->writeAttribute('input-timeout', "5000");
+            //$xml->startElement("bind");
+            $xml->writeAttribute('strip',"#");
+            $xml->text("~\d\d\d\d\d#");
+            $xml->endElement();
 
             /*$xml->startElement("speak");
             $xml->writeAttribute("engine", "flite");
@@ -106,6 +140,17 @@ class CallController extends Controller
 
         } else if (strval($pin) === $request->input('pin')) {
             // pin matches
+            Cache::put(
+                'attempts_clid_' . $clid,
+                0
+            );
+
+            Cache::put(
+                'whitelisted_clid_' . $clid,
+                true,
+                Carbon::now()->addDays($this->whitelisted_days)->toDateTimeString()
+            );
+
             $xml->startElement('break');
             $xml->endElement();
         } else if ($request->has('pin')) {
