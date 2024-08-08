@@ -4,10 +4,15 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class CallController extends Controller
 {
+
+    private int $max_attempts = 3;
+    private int $banned_days = 30;
+
     /**
      * Create a new controller instance.
      *
@@ -29,6 +34,9 @@ class CallController extends Controller
         Log::info('PIN: ' . $request->input('pin'));
 
         $clid = $this->sanitize($source);
+
+        $attempts = Cache::get('attempts_clid_' . $clid, 0);
+
         $xml = new \XMLWriter();
         $xml->openMemory();
         $xml->setIndent(1);
@@ -43,11 +51,22 @@ class CallController extends Controller
         $xml->writeAttribute('milliseconds', "2000");
         $xml->endElement();
 
-        if ($this->blacklisted($clid)) {
+        if ($attempts >= $this->max_attempts) {
+            Cache::put(
+                'attempts_clid_' . $clid,
+                $attempts + 1,
+                Carbon::now()->addDays($this->banned_days)->toDateTimeString()
+            );
+        }
+        if (Cache::get('whitelisted_clid_' . $clid, false)) {
+            // whitelisted
+            $xml->startElement('break');
+            $xml->endElement();
+        } else if (Cache::get('blacklisted_clid_' . $clid, false)) {
 
             $xml->startElement('playback');
             $xml->writeAttribute('name', "pin");
-            $xml->writeAttribute('file', url("audio/temporarily_banned_" . $pin . ".mp3"));
+            $xml->writeAttribute('file', url("audio/temporarily_banned.mp3"));
 
             /*$xml->startElement("speak");
             $xml->writeAttribute("engine", "flite");
@@ -76,6 +95,7 @@ class CallController extends Controller
 //$xml->endElement(); // </playback>
 
         } else if (strval($pin) === $request->input('pin')) {
+            // pin matches
             $xml->startElement('break');
             $xml->endElement();
         } else if ($request->has('pin')) {
@@ -117,13 +137,5 @@ class CallController extends Controller
     {
         return $clid;
     }
-
-    private function blacklisted($clid)
-    {
-        if ($clid === "+17808083320") {
-            return true;
-        } else {
-            return false;
-        }
-    }
+    
 }
