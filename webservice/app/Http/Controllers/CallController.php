@@ -105,8 +105,8 @@ class CallController extends Controller
             $xml->writeAttribute('name', "override");
             $xml->writeAttribute('file', url("audio/temporarily_banned.mp3"));
             //$xml->writeAttribute('error-file', url("audio/did_not_receive_response.mp3"));
-            //$xml->writeAttribute('digit-timeout', "1000");
-            //$xml->writeAttribute('input-timeout', "5000");
+            $xml->writeAttribute('digit-timeout', "4000");
+            $xml->writeAttribute('input-timeout', "10000");
             //$xml->startElement("bind");
             $xml->writeAttribute('strip',"#");
             $xml->text("~\d\d\d\d\d#");
