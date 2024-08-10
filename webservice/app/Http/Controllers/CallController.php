@@ -119,7 +119,7 @@ class CallController extends Controller
             $xml->endElement();
 
             $xml->startElement('playback');
-            $xml->writeAttribute('name', "override");
+            $xml->writeAttribute('name', "banned");
             $xml->writeAttribute('file', url("audio/temporarily_banned.mp3"));
 
             $xml->startElement('hangup');
