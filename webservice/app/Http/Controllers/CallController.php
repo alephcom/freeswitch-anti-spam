@@ -30,7 +30,7 @@ class CallController extends Controller
     public function __construct()
     {
         $this->redis = Redis::connection();
-        $this->override = config('app.override_code');
+        $this->override = config('app.override');
         $this->max_attempts = config('app.max_attempts');
         $this->banned_days = config('app.banned_days');
         $this->track_attempts_days = config('app.track_attempts_days');
