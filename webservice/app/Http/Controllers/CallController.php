@@ -12,9 +12,9 @@ class CallController extends Controller
 
     private int $max_attempts = 3;
     private int $banned_days = 30;
+    private int $track_attempts_days = 7;
     private int $whitelisted_days = 30;
     private string $override = "45678";
-    private bool $force_check = true;
 
     /**
      * Create a new controller instance.
@@ -63,7 +63,7 @@ class CallController extends Controller
         Cache::put(
             'attempts_clid_' . $clid,
             $attempts + 1,
-            Carbon::now()->addDays($this->banned_days)->toDateTimeString()
+            Carbon::now()->addDays($this->track_attempts_days)->toDateTimeString()
         );
 
         if ($attempts >= $this->max_attempts) {
@@ -72,6 +72,8 @@ class CallController extends Controller
                 true,
                 Carbon::now()->addDays($this->banned_days)->toDateTimeString()
             );
+            Log::channel('action')->info('BANNED: Days: ' . $this->banned_days . ' CLID: ' . $clid);
+
         }
         if ($request->has('override') && $request->input('override') === $this->override) {
             Cache::delete(
@@ -86,6 +88,7 @@ class CallController extends Controller
                 true,
                 Carbon::now()->addDays($this->whitelisted_days)->toDateTimeString()
             );
+            Log::channel('action')->info('WHITELISTED: Days: ' . $this->whitelisted_days . ' CLID: ' . $clid);
         } elseif ($request->has('override') && $attempts >= $this->max_attempts) {
             // If they've failed to work through the blacklist the second time they get blacklisted for twice as long.
             Cache::put(
@@ -93,9 +96,10 @@ class CallController extends Controller
                 true,
                 Carbon::now()->addDays($this->banned_days * 2)->toDateTimeString()
             );
+            Log::channel('action')->info('BANNED: Days: ' . $this->banned_days * 2 . ' CLID: ' . $clid);
         }
 
-        if (!$this->force_check && Cache::get('whitelisted_clid_' . $clid, false)) {
+        if (Cache::get('whitelisted_clid_' . $clid, false)) {
             // whitelisted
             $xml->startElement('break');
             $xml->endElement();
@@ -151,6 +155,7 @@ class CallController extends Controller
                 true,
                 Carbon::now()->addDays($this->whitelisted_days)->toDateTimeString()
             );
+            Log::channel('action')->info('WHITELISTED: Days: ' . $this->whitelisted_days . ' CLID: ' . $clid);
 
             $xml->startElement('break');
             $xml->endElement();
@@ -184,8 +189,7 @@ class CallController extends Controller
             $xml->startElement("bind");
             $xml->text("~\d");
             $xml->endElement();
-
-
+            
         }
         $xml->endElement(); // </work>
         $xml->endElement(); // </document>
