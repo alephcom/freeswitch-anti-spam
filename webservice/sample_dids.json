@@ -1,0 +1,28 @@
+[
+    {
+        "did" : "123456789",
+        "type" : "callerid",
+        "allowed_rule" : {
+            "starts_with": [
+                "1250",
+                "250",
+                "1780",
+                "780"
+            ]
+        }
+    },
+    {
+        "did" : "123456790",
+        "type" : "daytime",
+        "pass_recording_text": "",
+        "fail_recording_text": "",
+        "allowed_rule" : {
+            "timezone": "America/Edmonton",
+            "days": [
+              "sun","mon","tue"
+            ],
+            "start_hour": "10",
+            "end_hour": "13"
+        }
+    }
+]

@@ -17,8 +17,8 @@ class Polly
         ]);
         $result = $client->synthesizeSpeech([
             'OutputFormat'  => 'mp3',
-            'Text'          => $text_string,
-            'TextType'      => 'text',
+            'Text'          => "<speak>" . $text_string . "</speak>",
+            'TextType'      => 'ssml',
             'Engine'        => config('services.aws_polly.engine'),
             'VoiceId'       => config('services.aws_polly.voiceid'),
         ]);
