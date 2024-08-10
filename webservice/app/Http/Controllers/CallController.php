@@ -214,9 +214,9 @@ class CallController extends Controller
             $c = new Clid;
             $c->clid = $clid;
         }
-        $clid->expires_at = Carbon::now()->addDays($days);
-        $clid->status = Clid::STATUS_WHITELISTED;
-        $clid->save();
+        $c->expires_at = Carbon::now()->addDays($days);
+        $c->status = Clid::STATUS_WHITELISTED;
+        $c->save();
 
         Log::channel('action')->info('WHITELISTED: Days: ' . $days . ' CLID: ' . $clid);
     }
@@ -232,9 +232,9 @@ class CallController extends Controller
             $c = new Clid;
             $c->clid = $clid;
         }
-        $clid->expires_at = Carbon::now()->addDays($days);
-        $clid->status = Clid::STATUS_BLACKLISTED;
-        $clid->save();
+        $c->expires_at = Carbon::now()->addDays($days);
+        $c->status = Clid::STATUS_BLACKLISTED;
+        $c->save();
 
         Log::channel('action')->info('BANNED: Days: ' . $days . ' CLID: ' . $clid);
     }
