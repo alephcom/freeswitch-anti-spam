@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Number;
 use Illuminate\Support\Str;
 
 class CallController extends Controller
@@ -308,7 +309,7 @@ class CallController extends Controller
             // Request has pin but does not match.
             $xml->startElement('playback');
             $xml->writeAttribute('name', "pin");
-            $xml->writeAttribute('file', url("storage/" . md5("config_press_" . $pin) . ".mp3"));
+            $xml->writeAttribute('file', url("storage/" . md5("config_press_" . Number::spell($pin)) . ".mp3"));
             $xml->writeAttribute('error-file', url("storage/" . md5("config_did_not_receive_response") . ".mp3"));
             $xml->writeAttribute('digit-timeout', "1000");
             $xml->writeAttribute('input-timeout', "5000");
@@ -327,7 +328,7 @@ class CallController extends Controller
 
             $xml->startElement('playback');
             $xml->writeAttribute('name', "pin");
-            $xml->writeAttribute('file', url("storage/" . md5("config_press_" . $pin) . ".mp3"));
+            $xml->writeAttribute('file', url("storage/" . md5("config_press_" . Number::spell($pin)) . ".mp3"));
             $xml->writeAttribute('error-file', url("storage/" . md5("config_did_not_receive_response") . ".mp3"));
             $xml->writeAttribute('digit-timeout', "1000");
             $xml->writeAttribute('input-timeout', "5000");
