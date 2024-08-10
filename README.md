@@ -17,3 +17,5 @@ This sample dialplan will answer the call and then ask the web service how to ha
 Recordings come from Amazon Polly -> Long Form -> English, US -> Ruth, Female.
 
 You can run ``php artisan serve`` to run a testing instance of the webserver.  This could be run directly on your FreeSWITCH instance and then the dialplan could be pointed to localhost:8000.
+
+Some configuration is found in the ``.env`` file.  Details on the rules per DID can be found in ``storage/app/dids.json``

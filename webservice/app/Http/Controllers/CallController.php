@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Clid;
+use App\Utilities;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Str;
 
 class CallController extends Controller
 {
@@ -62,13 +64,166 @@ class CallController extends Controller
             return response($response, 200)->header('Content-Type', 'text/xml');
         }
 
-        $pin = Carbon::now()->dayOfWeek;
-
         Log::info(json_encode($request->input(), JSON_PRETTY_PRINT));
         $dest = $request->input('Caller-Destination-Number');
         $source = $request->input("Caller-Caller-ID-Number");
 
-        $clid = $this->sanitize($source);
+        $clid = Utilities::sanitize($source);
+
+        $config = Cache::get('did_config_' . $dest);
+
+        $type = "daily_pin";
+
+        if ($config) {
+            $type = $config['type'];
+        }
+
+        if ($type === "daily_pin") {
+            $response = $this->typeDailyPin($request, $dest,$source,$clid,$config);
+        } elseif ($type === "daytime") {
+            $response = $this->typeDaytime($request, $dest,$source,$clid,$config);
+        } elseif ($type === "callerid") {
+            $response = $this->typeCallerID($request, $dest,$source,$clid,$config);
+        }
+
+        Log::info($response);
+        return response($response, 200)->header('Content-Type', 'text/xml');
+    }
+
+
+    public function callStats(Request $request) {
+        if (!$request->input('token') === config('app.token')) {
+            return response('Not Available', 401);
+        }
+        $clids = Clid::get();
+        return $clids;
+    }
+
+    public function clidPurge(Request $request, $clid) {
+        if (!$request->input('token') === config('app.token')) {
+            return response('Not Available', 401);
+        }
+        $clid = $this->sanitize($clid);
+        Cache::delete(
+            'blacklisted_clid_' . $clid
+        );
+        Cache::delete(
+            'attempts_clid_' . $clid
+        );
+        Cache::delete(
+            'whitelisted_clid_' . $clid
+        );
+        return response('Clid Removed', 200);
+    }
+
+    private function typeCallerid(Request $request, $dest, $source,$clid,$config)
+    {
+        $xml = new \XMLWriter();
+        $xml->openMemory();
+        $xml->setIndent(1);
+        $xml->startDocument();
+        header('Content-Type: text/xml');
+        $xml->startElement('document');
+        $xml->writeAttribute('type', 'xml/freeswitch-httapi');
+
+        $xml->startElement('variables');
+        //$xml->startElement('test');
+        //$xml->text("testvariable");
+        //$xml->endElement();
+        $xml->endElement();
+
+        $xml->startElement('work');
+        $allowed = false;
+        foreach ($config['allowed_rule']['starts_with'] AS $value) {
+            if (Str::of($clid)->startsWith($value)) {
+                $allowed = true;
+            }
+        }
+        if ($allowed) {
+            if (strlen($config['pass_recording_text']) > 0 ) {
+                $xml->startElement('playback');
+                //$xml->writeAttribute('name', "banned");
+                $xml->writeAttribute('file',
+                    url("storage/" . md5($config['did'] . $config['pass_recording_text']) . ".mp3"));
+                $xml->endElement();
+            }
+            $xml->startElement('break');
+            $xml->endElement();
+        } else {
+            if (strlen($config['fail_recording_text']) > 0 ) {
+                $xml->startElement('playback');
+                //$xml->writeAttribute('name', "banned");
+                $xml->writeAttribute('file',
+                    url("storage/" . md5($config['did'] . $config['fail_recording_text']) . ".mp3"));
+                $xml->endElement();
+            }
+            $xml->startElement('hangup');
+            $xml->writeAttribute('cause', 'USER_BUSY');
+            $xml->endElement();
+        }
+        $xml->endElement(); // </work>
+        $xml->endElement(); // </document>
+        return $xml->flush();
+    }
+
+    private function typeDaytime(Request $request, $dest, $source,$clid,$config) {
+        $xml = new \XMLWriter();
+        $xml->openMemory();
+        $xml->setIndent(1);
+        $xml->startDocument();
+        header('Content-Type: text/xml');
+        $xml->startElement('document');
+        $xml->writeAttribute('type', 'xml/freeswitch-httapi');
+
+        $xml->startElement('variables');
+        //$xml->startElement('test');
+        //$xml->text("testvariable");
+        //$xml->endElement();
+        $xml->endElement();
+
+        $xml->startElement('work');
+
+        $current_day_of_week = Str::lower(Carbon::now()->shortEnglishDayOfWeek);
+        $allowed = false;
+
+        // First check day of week.
+        if (in_array($current_day_of_week, $config['allowed_rule']['days'])) {
+            // Next check hours.
+            $current_hour = Carbon::now($config['allowed_rule']['timezone'])->hour;
+            if ($current_hour >= $config['allowed_rule']['start_hour'] &&
+                $current_hour <= $config['allowed_rule']['end_hour']) {
+                $allowed = true;
+            }
+        }
+        if ($allowed) {
+            if (strlen($config['pass_recording_text']) > 0 ) {
+                $xml->startElement('playback');
+                //$xml->writeAttribute('name', "banned");
+                $xml->writeAttribute('file',
+                    url("storage/" . md5($config['did'] . $config['pass_recording_text']) . ".mp3"));
+                $xml->endElement();
+            }
+            $xml->startElement('break');
+            $xml->endElement();
+        } else {
+            if (strlen($config['fail_recording_text']) > 0 ) {
+                $xml->startElement('playback');
+                //$xml->writeAttribute('name', "banned");
+                $xml->writeAttribute('file',
+                    url("storage/" . md5($config['did'] . $config['fail_recording_text']) . ".mp3"));
+                $xml->endElement();
+            }
+            $xml->startElement('hangup');
+            $xml->writeAttribute('cause', 'USER_BUSY');
+            $xml->endElement();
+        }
+        $xml->endElement(); // </work>
+        $xml->endElement(); // </document>
+        return $xml->flush();
+    }
+
+    private function typeDailyPin($request, $dest,$source,$clid, $config) {
+        $pin = Carbon::now()->dayOfWeek;
 
         $attempts = Cache::get('attempts_clid_' . $clid, 0);
 
@@ -100,14 +255,14 @@ class CallController extends Controller
         );
 
         if ($attempts >= $this->max_attempts) {
-            $this->blacklist($clid, $this->banned_days);
+            Utilities::blacklist($clid, $this->banned_days);
             $this->hangup = true;
         }
         if ($request->has('override') && $request->input('override') === $this->override) {
-            $this->whitelist($clid, $this->whitelisted_days);
+            Utilities::whitelist($clid, $this->whitelisted_days);
         } elseif ($request->has('override') && $attempts >= $this->max_attempts) {
             // If they've failed to work through the blacklist the second time they get blacklisted for twice as long.
-            $this->blacklist($clid, $this->banned_days * 2);
+            Utilities::blacklist($clid, $this->banned_days * 2);
             $this->hangup = true;
         }
 
@@ -146,7 +301,7 @@ class CallController extends Controller
 
         } else if (strval($pin) === $request->input('pin')) {
             // pin matches
-            $this->whitelist($clid, $this->whitelisted_days);
+            Utilities::whitelist($clid, $this->whitelisted_days);
             $xml->startElement('break');
             $xml->endElement();
         } else if ($request->has('pin')) {
@@ -183,82 +338,7 @@ class CallController extends Controller
 
         $xml->endElement(); // </work>
         $xml->endElement(); // </document>
-        $response = $xml->flush();
-        Log::info($response);
-        return response($response, 200)->header('Content-Type', 'text/xml');
-    }
-
-    private function sanitize($clid)
-    {
-        return preg_replace('/[^0-9]/','',$clid);
-    }
-
-    private function whitelist($clid, $days) {
-        Cache::delete(
-            'blacklisted_clid_' . $clid
-        );
-        Cache::put(
-            'attempts_clid_' . $clid,
-            0
-        );
-        Cache::put(
-            'whitelisted_clid_' . $clid,
-            true,
-            Carbon::now()->addDays($days)->toDateTimeString()
-        );
-        $c = Clid::where('clid', $clid)->first();
-        if (!$c) {
-            $c = new Clid;
-            $c->clid = $clid;
-        }
-        $c->expires_at = Carbon::now()->addDays($days);
-        $c->status = Clid::STATUS_WHITELISTED;
-        $c->save();
-
-        Log::channel('action')->info('WHITELISTED: Days: ' . $days . ' CLID: ' . $clid);
-    }
-
-    private function blacklist($clid, $days) {
-        Cache::put(
-            'blacklisted_clid_' . $clid,
-            true,
-            Carbon::now()->addDays($days)->toDateTimeString()
-        );
-        $c = Clid::where('clid', $clid)->first();
-        if (!$c) {
-            $c = new Clid;
-            $c->clid = $clid;
-        }
-        $c->expires_at = Carbon::now()->addDays($days);
-        $c->status = Clid::STATUS_BLACKLISTED;
-        $c->save();
-
-        Log::channel('action')->info('BANNED: Days: ' . $days . ' CLID: ' . $clid);
-    }
-
-    public function callStats(Request $request) {
-        if (!$request->input('token') === config('app.token')) {
-            return response('Not Available', 401);
-        }
-        $clids = Clid::get();
-        return $clids;
-    }
-
-    public function clidPurge(Request $request, $clid) {
-        if (!$request->input('token') === config('app.token')) {
-            return response('Not Available', 401);
-        }
-        $clid = $this->sanitize($clid);
-        Cache::delete(
-            'blacklisted_clid_' . $clid
-        );
-        Cache::delete(
-            'attempts_clid_' . $clid
-        );
-        Cache::delete(
-            'whitelisted_clid_' . $clid
-        );
-        return response('Clid Removed', 200);
+        return $xml->flush();
     }
 
 }

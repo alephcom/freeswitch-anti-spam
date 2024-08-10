@@ -14,6 +14,14 @@ return [
     |
     */
 
+    'aws_polly' => [
+        'key' => env('AWS_POLLY_ACCESS_KEY_ID'),
+        'secret' => env('AWS_POLLY_SECRET_ACCESS_KEY'),
+        'region' => env('AWS_POLLY_REGION', 'us-east-1'),
+        'engine' => env('AWS_POLLY_ENGINE', 'long-form'),
+        'voiceid' => env('AWS_POLLY_VOICEID','Ruth'),
+    ],
+
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),
     ],
