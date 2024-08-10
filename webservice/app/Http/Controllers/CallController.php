@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Clid;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 class CallController extends Controller
 {
@@ -16,6 +18,8 @@ class CallController extends Controller
     private int $whitelisted_days = 30;
     private string $override = "45678";
 
+    private $redis;
+
     /**
      * Create a new controller instance.
      *
@@ -24,6 +28,7 @@ class CallController extends Controller
 
     public function __construct()
     {
+        $this->redis = Redis::connection();
 //        $this->middleware('auth');
     }
 
@@ -67,36 +72,13 @@ class CallController extends Controller
         );
 
         if ($attempts >= $this->max_attempts) {
-            Cache::put(
-                'blacklisted_clid_' . $clid,
-                true,
-                Carbon::now()->addDays($this->banned_days)->toDateTimeString()
-            );
-            Log::channel('action')->info('BANNED: Days: ' . $this->banned_days . ' CLID: ' . $clid);
-
+            $this->blacklist($clid, $this->banned_days);
         }
         if ($request->has('override') && $request->input('override') === $this->override) {
-            Cache::delete(
-                'blacklisted_clid_' . $clid
-            );
-            Cache::put(
-                'attempts_clid_' . $clid,
-                0
-            );
-            Cache::put(
-                'whitelisted_clid_' . $clid,
-                true,
-                Carbon::now()->addDays($this->whitelisted_days)->toDateTimeString()
-            );
-            Log::channel('action')->info('WHITELISTED: Days: ' . $this->whitelisted_days . ' CLID: ' . $clid);
+            $this->whitelist($clid, $this->whitelisted_days);
         } elseif ($request->has('override') && $attempts >= $this->max_attempts) {
             // If they've failed to work through the blacklist the second time they get blacklisted for twice as long.
-            Cache::put(
-                'blacklisted_clid_' . $clid,
-                true,
-                Carbon::now()->addDays($this->banned_days * 2)->toDateTimeString()
-            );
-            Log::channel('action')->info('BANNED: Days: ' . $this->banned_days * 2 . ' CLID: ' . $clid);
+            $this->blacklist($clid, $this->banned_days * 2);
         }
 
         if (Cache::get('whitelisted_clid_' . $clid, false)) {
@@ -145,18 +127,7 @@ class CallController extends Controller
 
         } else if (strval($pin) === $request->input('pin')) {
             // pin matches
-            Cache::put(
-                'attempts_clid_' . $clid,
-                0
-            );
-
-            Cache::put(
-                'whitelisted_clid_' . $clid,
-                true,
-                Carbon::now()->addDays($this->whitelisted_days)->toDateTimeString()
-            );
-            Log::channel('action')->info('WHITELISTED: Days: ' . $this->whitelisted_days . ' CLID: ' . $clid);
-
+            $this->whitelist($clid, $this->whitelisted_days);
             $xml->startElement('break');
             $xml->endElement();
         } else if ($request->has('pin')) {
@@ -189,7 +160,7 @@ class CallController extends Controller
             $xml->startElement("bind");
             $xml->text("~\d");
             $xml->endElement();
-            
+
         }
         $xml->endElement(); // </work>
         $xml->endElement(); // </document>
@@ -200,7 +171,74 @@ class CallController extends Controller
 
     private function sanitize($clid)
     {
-        return $clid;
+        return preg_replace('/[^0-9]/','',$clid);
+    }
+
+    private function whitelist($clid, $days) {
+        Cache::delete(
+            'blacklisted_clid_' . $clid
+        );
+        Cache::put(
+            'attempts_clid_' . $clid,
+            0
+        );
+        Cache::put(
+            'whitelisted_clid_' . $clid,
+            true,
+            Carbon::now()->addDays($days)->toDateTimeString()
+        );
+        $c = Clid::where('clid', $clid)->first();
+        if (!$c) {
+            $c = new Clid;
+            $c->clid = $clid;
+        }
+        $clid->expires_at = Carbon::now()->addDays($days);
+        $clid->status = Clid::STATUS_WHITELISTED;
+        $clid->save();
+
+        Log::channel('action')->info('WHITELISTED: Days: ' . $days . ' CLID: ' . $clid);
+    }
+
+    private function blacklist($clid, $days) {
+        Cache::put(
+            'blacklisted_clid_' . $clid,
+            true,
+            Carbon::now()->addDays($days)->toDateTimeString()
+        );
+        $c = Clid::where('clid', $clid)->first();
+        if (!$c) {
+            $c = new Clid;
+            $c->clid = $clid;
+        }
+        $clid->expires_at = Carbon::now()->addDays($days);
+        $clid->status = Clid::STATUS_BLACKLISTED;
+        $clid->save();
+
+        Log::channel('action')->info('BANNED: Days: ' . $days . ' CLID: ' . $clid);
+    }
+
+    public function callStats(Request $request) {
+        if (!$request->input('token') === config('app.token')) {
+            return response('Not Available', 401);
+        }
+        $clids = Clid::get();
+        return $clids;
+    }
+
+    public function clidPurge(Request $request, $clid) {
+        if (!$request->input('token') === config('app.token')) {
+            return response('Not Available', 401);
+        }
+        $clid = $this->sanitize($clid);
+        Cache::delete(
+            'blacklisted_clid_' . $clid
+        );
+        Cache::delete(
+            'attempts_clid_' . $clid
+        );
+        Cache::delete(
+            'whitelisted_clid_' . $clid
+        );
     }
 
 }
