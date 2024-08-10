@@ -51,6 +51,12 @@ class CallController extends Controller
         $xml->startElement('document');
         $xml->writeAttribute('type', 'xml/freeswitch-httapi');
 
+        $xml->startElement('variables');
+        $xml->startElement('test');
+        $xml->text("testvariable");
+        $xml->endElement();
+        $xml->endElement();
+
         $xml->startElement('work');
 
         Cache::put(
@@ -131,12 +137,6 @@ class CallController extends Controller
             $xml->startElement('hangup');
             $xml->writeAttribute('cause', 'USER_BUSY');
             $xml->endElement();
-
-//$xml->startElement("bind");
-//$xml->writeAttribute('strip',"#");
-//$xml->text("~\\d+\#");
-//$xml->endElement(); // </bind>
-//$xml->endElement(); // </playback>
 
         } else if (strval($pin) === $request->input('pin')) {
             // pin matches
