@@ -35,11 +35,13 @@ class UpdateConfig extends Command
             $this->info($config['did'] . ' - ' . json_encode($config));
             Cache::put('did_config_' . $config['did'], $config);
             if (isset($config['pass_recording_text']) && strlen($config['pass_recording_text'] ) > 0) {
+                $this->info('Creating Pass: '.md5($config['did'] . $config['pass_recording_text']) . ".mp3");
                 Storage::drive('public')->put(
                     md5($config['did'] . $config['pass_recording_text']) . ".mp3",
                     $polly->generateMp3($config['pass_recording_text']));
             }
             if (isset($config['fail_recording_text']) && strlen($config['fail_recording_text'] ) > 0) {
+                $this->info('Creating Fail: '.md5($config['did'] . $config['fail_recording_text']) . ".mp3");
                 Storage::drive('public')->put(
                     md5($config['did'] . $config['fail_recording_text']) . ".mp3",
                     $polly->generateMp3($config['fail_recording_text']));
@@ -47,6 +49,7 @@ class UpdateConfig extends Command
         }
 
         foreach (config('app.audio_file') AS $key => $text) {
+            $this->info("Creating Config (config_{$key}): " . md5("config_{$key}") . ".mp3");
             Storage::drive('public')->put(
                 md5("config_{$key}") . ".mp3",
                 $polly->generateMp3($text)
