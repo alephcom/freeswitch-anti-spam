@@ -277,7 +277,7 @@ class CallController extends Controller
 
             $xml->startElement('playback');
             $xml->writeAttribute('name', "banned");
-            $xml->writeAttribute('file', url("audio/temporarily_banned_hangup.mp3"));
+            $xml->writeAttribute('file', url("storage/" . md5("config_temporarily_banned") . ".mp3"));
             $xml->endElement();
 
             $xml->startElement('hangup');
@@ -290,7 +290,7 @@ class CallController extends Controller
 
             $xml->startElement('playback');
             $xml->writeAttribute('name', "override");
-            $xml->writeAttribute('file', url("audio/temporarily_banned_override.mp3"));
+            $xml->writeAttribute('file', url("storage/" . md5("config_temporarily_banned_override") . ".mp3"));
             //$xml->writeAttribute('error-file', url("audio/did_not_receive_response.mp3"));
             $xml->writeAttribute('digit-timeout', "4000");
             $xml->writeAttribute('input-timeout', "10000");
@@ -308,8 +308,8 @@ class CallController extends Controller
             // Request has pin but does not match.
             $xml->startElement('playback');
             $xml->writeAttribute('name', "pin");
-            $xml->writeAttribute('file', url("audio/press_" . $pin . ".mp3"));
-            $xml->writeAttribute('error-file', url("audio/did_not_receive_response.mp3"));
+            $xml->writeAttribute('file', url("storage/" . md5("config_press_" . $pin) . ".mp3"));
+            $xml->writeAttribute('error-file', url("storage/" . md5("config_did_not_receive_response") . ".mp3"));
             $xml->writeAttribute('digit-timeout', "1000");
             $xml->writeAttribute('input-timeout', "5000");
             $xml->startElement("bind");
@@ -322,13 +322,13 @@ class CallController extends Controller
             $xml->endElement();
 
             $xml->startElement('playback');
-            $xml->writeAttribute('file', url("audio/protection.mp3"));
+            $xml->writeAttribute('file', url("storage/" . md5("config_default_first") . ".mp3"));
             $xml->endElement();
 
             $xml->startElement('playback');
             $xml->writeAttribute('name', "pin");
-            $xml->writeAttribute('file', url("audio/press_" . $pin . ".mp3"));
-            $xml->writeAttribute('error-file', url("audio/did_not_receive_response.mp3"));
+            $xml->writeAttribute('file', url("storage/" . md5("config_press_" . $pin) . ".mp3"));
+            $xml->writeAttribute('error-file', url("storage/" . md5("config_did_not_receive_response") . ".mp3"));
             $xml->writeAttribute('digit-timeout', "1000");
             $xml->writeAttribute('input-timeout', "5000");
             $xml->startElement("bind");
