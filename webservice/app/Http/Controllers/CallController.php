@@ -14,6 +14,7 @@ class CallController extends Controller
     private int $banned_days = 30;
     private int $whitelisted_days = 30;
     private string $override = "45678";
+    private bool $force_check = true;
 
     /**
      * Create a new controller instance.
@@ -94,7 +95,7 @@ class CallController extends Controller
             );
         }
 
-        if (Cache::get('whitelisted_clid_' . $clid, false)) {
+        if (!$this->force_check && Cache::get('whitelisted_clid_' . $clid, false)) {
             // whitelisted
             $xml->startElement('break');
             $xml->endElement();
