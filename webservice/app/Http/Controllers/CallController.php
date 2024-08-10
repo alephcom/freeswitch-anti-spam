@@ -18,6 +18,8 @@ class CallController extends Controller
     private int $whitelisted_days = 30;
     private string $override = "45678";
 
+    private bool $hangup = false;
+
     private $redis;
 
     /**
@@ -34,6 +36,8 @@ class CallController extends Controller
 
     public function call(Request $request)
     {
+        $this->hangup = false;
+
         if ($request->has('exiting') && $request->input('exiting') == "true") {
             $xml = new \XMLWriter();
             $xml->openMemory();
@@ -95,56 +99,46 @@ class CallController extends Controller
 
         if ($attempts >= $this->max_attempts) {
             $this->blacklist($clid, $this->banned_days);
+            $this->hangup = true;
         }
         if ($request->has('override') && $request->input('override') === $this->override) {
             $this->whitelist($clid, $this->whitelisted_days);
         } elseif ($request->has('override') && $attempts >= $this->max_attempts) {
             // If they've failed to work through the blacklist the second time they get blacklisted for twice as long.
             $this->blacklist($clid, $this->banned_days * 2);
+            $this->hangup = true;
         }
 
         if (Cache::get('whitelisted_clid_' . $clid, false)) {
             // whitelisted
             $xml->startElement('break');
             $xml->endElement();
+        } else if ($attempts >= $this->max_attempts + 2 || $this->hangup === true) {
+            $xml->startElement('pause');
+            $xml->writeAttribute('milliseconds', "2000");
+            $xml->endElement();
+
+            $xml->startElement('playback');
+            $xml->writeAttribute('name', "override");
+            $xml->writeAttribute('file', url("audio/temporarily_banned.mp3"));
+
+            $xml->startElement('hangup');
+            $xml->writeAttribute('cause', 'USER_BUSY');
+            $xml->endElement();
         } else if (Cache::get('blacklisted_clid_' . $clid, false)) {
             $xml->startElement('pause');
             $xml->writeAttribute('milliseconds', "2000");
             $xml->endElement();
 
-            //$xml->startElement('playback');
-            //$xml->writeAttribute('name', "pin");
-            //$xml->writeAttribute('file', url("audio/temporarily_banned.mp3"));
-
             $xml->startElement('playback');
             $xml->writeAttribute('name', "override");
-            $xml->writeAttribute('file', url("audio/temporarily_banned.mp3"));
+            $xml->writeAttribute('file', url("audio/temporarily_banned_override.mp3"));
             //$xml->writeAttribute('error-file', url("audio/did_not_receive_response.mp3"));
             $xml->writeAttribute('digit-timeout', "4000");
             $xml->writeAttribute('input-timeout', "10000");
             //$xml->startElement("bind");
             $xml->writeAttribute('strip',"#");
             $xml->text("~\d\d\d\d\d#");
-            $xml->endElement();
-
-            /*$xml->startElement("speak");
-            $xml->writeAttribute("engine", "flite");
-            $xml->writeAttribute("voice", "kal");
-            $xml->text("Your number has been temporarily banned from this system. Goodbye");
-            $xml->endElement(); // </pause>*.
-//
-
-            /*$xml->startElement('playback');
-            $xml->writeAttribute('name', 'digits');
-            $xml->writeAttribute('file', 'exten.wav');
-            $xml->writeAttribute('error-file', 'http://sidious.freeswitch.org/sounds/invalid.wav');
-            $xml->writeAttribute('input-timeout', '5000');
-            $xml->writeAttribute('action', 'dial:default:XML');
-            $xml->endElement(); // </pause>
-            // */
-
-            $xml->startElement('hangup');
-            $xml->writeAttribute('cause', 'USER_BUSY');
             $xml->endElement();
 
         } else if (strval($pin) === $request->input('pin')) {
@@ -182,8 +176,8 @@ class CallController extends Controller
             $xml->startElement("bind");
             $xml->text("~\d");
             $xml->endElement();
-
         }
+
         $xml->endElement(); // </work>
         $xml->endElement(); // </document>
         $response = $xml->flush();

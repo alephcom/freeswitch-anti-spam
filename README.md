@@ -13,3 +13,5 @@ This sample dialplan will answer the call and then ask the web service how to ha
      </condition>
    </extension>
 ```
+
+Recordings come from Amazon Polly -> Long Form -> English, US -> Ruth, Female.
