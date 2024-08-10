@@ -261,6 +261,7 @@ class CallController extends Controller
         Cache::delete(
             'whitelisted_clid_' . $clid
         );
+        return response('Clid Removed', 200);
     }
 
 }
