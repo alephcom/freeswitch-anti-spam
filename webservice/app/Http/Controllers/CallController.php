@@ -12,15 +12,14 @@ use Illuminate\Support\Facades\Redis;
 class CallController extends Controller
 {
 
-    private int $max_attempts = 3;
-    private int $banned_days = 30;
-    private int $track_attempts_days = 7;
-    private int $whitelisted_days = 30;
-    private string $override = "45678";
+    private int $max_attempts;
+    private int $banned_days;
+    private int $track_attempts_days;
+    private int $whitelisted_days;
+    private string $override;
+    private bool $hangup;
 
-    private bool $hangup = false;
-
-    private $redis;
+    private \Illuminate\Redis\Connections\Connection $redis;
 
     /**
      * Create a new controller instance.
@@ -31,6 +30,11 @@ class CallController extends Controller
     public function __construct()
     {
         $this->redis = Redis::connection();
+        $this->override = config('app.override_code');
+        $this->max_attempts = config('app.max_attempts');
+        $this->banned_days = config('app.banned_days');
+        $this->track_attempts_days = config('app.track_attempts_days');
+        $this->whitelisted_days = config('app.whitelisted_days');
 //        $this->middleware('auth');
     }
 
@@ -47,11 +51,9 @@ class CallController extends Controller
             $xml->startElement('document');
             $xml->writeAttribute('type', 'xml/freeswitch-httapi');
             $xml->startElement('variables');
-
-            $xml->startElement('test');
-            $xml->text("testvariable");
-            $xml->endElement(); //test
-
+            //$xml->startElement('test');
+            //$xml->text("testvariable");
+            //$xml->endElement(); //test
             $xml->endElement(); //variables
 
             $xml->endElement(); //document
@@ -84,9 +86,9 @@ class CallController extends Controller
         $xml->writeAttribute('type', 'xml/freeswitch-httapi');
 
         $xml->startElement('variables');
-        $xml->startElement('test');
-        $xml->text("testvariable");
-        $xml->endElement();
+        //$xml->startElement('test');
+        //$xml->text("testvariable");
+        //$xml->endElement();
         $xml->endElement();
 
         $xml->startElement('work');
@@ -122,7 +124,7 @@ class CallController extends Controller
             $xml->writeAttribute('name', "banned");
             $xml->writeAttribute('file', url("audio/temporarily_banned_hangup.mp3"));
             $xml->endElement();
-            
+
             $xml->startElement('hangup');
             $xml->writeAttribute('cause', 'USER_BUSY');
             $xml->endElement();

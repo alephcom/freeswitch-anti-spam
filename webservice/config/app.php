@@ -2,7 +2,13 @@
 
 return [
 
-    'token' => env('APP_TOKEN','7367a75c-32f0-417f-94e3-8d0f0d55f163'),
+    'token' => env('APP_TOKEN',''), // token to access the admin url
+    'override' => env('APP_OVERRIDE',"45678"), //5 digit override code.
+    'max_attempts' => env('MAX_ATTEMPTS', 3),
+    'banned_days' => env('BANNED_DAYS', 30),
+    'track_attempts_days' => env( 'TRACK_ATTEMPTS_DAYS',7),
+    'whitelisted_days' => env('WHITELISTED_DAYS',30),
+
     /*
     |--------------------------------------------------------------------------
     | Application Name
