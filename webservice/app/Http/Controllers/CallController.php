@@ -31,7 +31,7 @@ class CallController extends Controller
     {
         $pin = Carbon::now()->dayOfWeek;
 
-        Log::info(json_encode($request->input()));
+        Log::info(json_encode($request->input(), JSON_PRETTY_PRINT));
         $dest = $request->input('Caller-Destination-Number');
         $source = $request->input("Caller-Caller-ID-Number");
 
