@@ -15,7 +15,7 @@ PWD=`pwd`
     composer install --no-interaction --prefer-dist --optimize-autoloader
     # Migrate database
     php artisan migrate --force --step
-    php artisan config:cache
+    #php artisan config:cache
     # Note: If you're using queue workers, this is the place to restart them.
     php artisan queue:restart
     # Clear cache
