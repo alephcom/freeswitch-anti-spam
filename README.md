@@ -1,7 +1,7 @@
 # freeswitch-anti-spam
-Anti Robo Caller for FreeSWITCH
+Robo Call Blocker for FreeSWITCH
 
-This sample dialplan will answer the call and then ask the web service how to handle the call.  The web service will play a specific file depending on day of the week.  If the user presses the correct number, it will add them to a cache and the caller will be allowed for 90 days.  
+This sample dialplan will answer the call and then ask the web service how to handle the call.  The web service will play a specific file depending on day of the week.  If the user presses the correct number, it will add them to a cache and the caller will be allowed for 90(default) days.  
 
 ```
    <!-- Testing Toll Free DID -->
