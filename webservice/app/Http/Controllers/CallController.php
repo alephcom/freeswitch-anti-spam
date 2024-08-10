@@ -34,6 +34,28 @@ class CallController extends Controller
 
     public function call(Request $request)
     {
+        if ($request->has('exiting') && $request->input('exiting') == "true") {
+            $xml = new \XMLWriter();
+            $xml->openMemory();
+            $xml->setIndent(1);
+            $xml->startDocument();
+            header('Content-Type: text/xml');
+            $xml->startElement('document');
+            $xml->writeAttribute('type', 'xml/freeswitch-httapi');
+            $xml->startElement('variables');
+
+            $xml->startElement('test');
+            $xml->text("testvariable");
+            $xml->endElement(); //test
+
+            $xml->endElement(); //variables
+
+            $xml->endElement(); //document
+            $response = $xml->flush();
+            Log::info('returned exiting response');
+            return response($response, 200)->header('Content-Type', 'text/xml');
+        }
+
         $pin = Carbon::now()->dayOfWeek;
 
         Log::info(json_encode($request->input(), JSON_PRETTY_PRINT));
