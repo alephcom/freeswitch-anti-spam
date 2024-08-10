@@ -120,7 +120,7 @@ class CallController extends Controller
 
             $xml->startElement('playback');
             $xml->writeAttribute('name', "banned");
-            $xml->writeAttribute('file', url("audio/temporarily_banned.mp3"));
+            $xml->writeAttribute('file', url("audio/temporarily_banned_hangup.mp3"));
 
             $xml->startElement('hangup');
             $xml->writeAttribute('cause', 'USER_BUSY');
